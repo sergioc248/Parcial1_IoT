@@ -20,9 +20,34 @@ def generate_reading(ts):
     # WiFi RSSI: typical indoor range -90 to -30 dBm
     rssiDbm = round(random.uniform(-75.0, -45.0), 1)
 
+    # Soil moisture: cacao prefers moist substrate (50-80%)
+    humedadSueloPct = round(random.uniform(50.0, 80.0), 0)
+
+    # Substrate pH: cacao optimal range 5.5-7.0, slight variation over time
+    ph = round(random.uniform(5.5, 7.0), 2)
+
+    # CO2: greenhouse levels, higher during day due to plant activity
+    co2_base = 800 + 300 * math.sin(math.pi * (hour - 6) / 12)  # peaks midday
+    co2ppm = round(max(400.0, co2_base + random.uniform(-50.0, 50.0)), 0)
+
+    # Illuminance: filtered greenhouse light, peaks at midday (0 at night)
+    if 6 <= hour <= 18:
+        lux_base = 20000 * math.sin(math.pi * (hour - 6) / 12)
+        luminosidadLux = round(max(0.0, lux_base + random.uniform(-1000.0, 1000.0)), 0)
+    else:
+        luminosidadLux = 0.0
+
     return {
         "tempC": tempC,
         "humedadAirePct": humedadAirePct,
         "bateriaPct": bateriaPct,
         "rssiDbm": rssiDbm,
+        # Component: Modulo de Sensor de Suelo
+        "NodoCultivoBase_60o": {"humedadSueloPct": humedadSueloPct},
+        # Component: Módulo de Sensor de PH
+        "NodoCultivoBase_2jw": {"ph": ph},
+        # Component: Módulo de Sensor de CO2
+        "NodoCultivoBase_6mr": {"co2ppm": co2ppm},
+        # Component: Módulo de Sensor de Luz
+        "NodoCultivoBase_2xc": {"luminosidadLux": luminosidadLux},
     }
