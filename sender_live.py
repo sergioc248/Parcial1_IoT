@@ -39,8 +39,6 @@ class MemStorage(Storage):
         return None
 
 
-model_id = device.MODEL_ID
-
 async def on_props(prop: Property):
     print(f"Received {prop.name}:{prop.value}")
     return True
@@ -53,23 +51,25 @@ async def on_enqueued_commands(command: Command):
     print("Received offline command {} with value {}".format(command.name, command.value))
 
 
-client = IoTCClient(
-    device_id,
-    scope_id,
-    IOTCConnectType.IOTC_CONNECT_DEVICE_KEY,
-    key,
-    storage=MemStorage(),
-)
-if model_id is not None:
-    client.set_model_id(model_id)
+def make_client():
+    client = IoTCClient(
+        device_id,
+        scope_id,
+        IOTCConnectType.IOTC_CONNECT_DEVICE_KEY,
+        key,
+        storage=MemStorage(),
+    )
+    if device.MODEL_ID is not None:
+        client.set_model_id(device.MODEL_ID)
+    client.set_log_level(IOTCLogLevel.IOTC_LOGGING_ALL)
+    client.on(IOTCEvents.IOTC_PROPERTIES, on_props)
+    client.on(IOTCEvents.IOTC_COMMAND, on_commands)
+    client.on(IOTCEvents.IOTC_ENQUEUED_COMMAND, on_enqueued_commands)
+    return client
 
-client.set_log_level(IOTCLogLevel.IOTC_LOGGING_ALL)
-client.on(IOTCEvents.IOTC_PROPERTIES, on_props)
-client.on(IOTCEvents.IOTC_COMMAND, on_commands)
-client.on(IOTCEvents.IOTC_ENQUEUED_COMMAND, on_enqueued_commands)
 
-
-async def main():
+async def run():
+    client = make_client()
     await client.connect()
 
     while not client.terminated():
@@ -87,6 +87,16 @@ async def main():
         await asyncio.sleep(25)
 
     await client.disconnect()
+
+
+async def main():
+    retry_delay = 5
+    while True:
+        try:
+            await run()
+        except Exception as e:
+            print(f"Connection error: {e}. Retrying in {retry_delay}s...")
+            await asyncio.sleep(retry_delay)
 
 
 if __name__ == "__main__":
