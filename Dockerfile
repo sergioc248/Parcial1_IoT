@@ -6,10 +6,9 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY samples.ini .
-COPY IoTCentralSender_EstacionClimaExterno.py .
-COPY "IoTCentralSenderBatch_EstacionClimaExterno..py" .
-COPY IoTCentralSender_CultivoCacao.py .
-COPY IoTCentralSenderBatch_CultivoCacao.py .
+COPY sender_live.py .
+COPY sender_batch.py .
+COPY devices/ ./devices/
 COPY entrypoint.sh .
 RUN chmod +x entrypoint.sh
 
