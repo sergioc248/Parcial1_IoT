@@ -2,7 +2,6 @@ import os
 import asyncio
 import configparser
 import sys
-import json
 import random
 import math
 
@@ -28,12 +27,12 @@ from iotc import (
 )
 from iotc.aio import IoTCClient
 
-device_id = os.environ["DEVICE_ID"]
-scope_id = os.environ["SCOPE_ID"]
-key = os.environ["DEVICE_KEY"]
+device_id = os.environ["CACAO_DEVICE_ID"]
+scope_id = os.environ["CACAO_SCOPE_ID"]
+key = os.environ["CACAO_DEVICE_KEY"]
 
 # Historical data settings
-DAYS_OF_HISTORY = 4          # How many days back to start
+DAYS_OF_HISTORY = 5          # How many days back to start
 INTERVAL_MINUTES = 30        # One reading every 30 minutes
 
 class MemStorage(Storage):
@@ -73,30 +72,26 @@ client.on(IOTCEvents.IOTC_ENQUEUED_COMMAND, on_enqueued_commands)
 
 
 def generate_reading(ts: datetime) -> dict:
-    """Generate realistic sensor values for a given timestamp."""
-    # Use hour of day to simulate daily temperature cycle (cooler at night, warmer midday)
+    # Cacao optimal range: 18-32°C, mild daily cycle
     hour = ts.hour + ts.minute / 60.0
-    temp_base = 22 + 8 * math.sin(math.pi * (hour - 6) / 12)  # peaks ~18:00
-    tempExternaC = round(temp_base + random.uniform(-2.0, 2.0), 1)
+    temp_base = 25 + 4 * math.sin(math.pi * (hour - 6) / 12)
+    tempC = round(temp_base + random.uniform(-1.5, 1.5), 1)
 
-    # Humidity inversely correlated with temperature
-    humedad_base = 75 - 1.2 * (tempExternaC - 22)
-    humedadExternaPct = round(min(100.0, max(0.0, humedad_base + random.uniform(-5.0, 5.0))), 1)
+    # High humidity environment (70-90%)
+    humedad_base = 80 - 0.8 * (tempC - 25)
+    humedadAirePct = round(min(100.0, max(0.0, humedad_base + random.uniform(-4.0, 4.0))), 1)
 
-    # Wind speed: light breeze with occasional gusts
-    vientoMps = round(max(0.0, random.gauss(2.5, 1.5)), 1)
+    # Battery slowly drains, stays mostly high
+    bateriaPct = random.randint(70, 100)
 
-    # Rain: mostly 0, small chance of rain event
-    if random.random() < 0.1:
-        lluviaMm = round(random.uniform(0.5, 15.0), 1)
-    else:
-        lluviaMm = 0.0
+    # WiFi RSSI: typical indoor range -90 to -30 dBm
+    rssiDbm = round(random.uniform(-75.0, -45.0), 1)
 
     return {
-        "tempExternaC": tempExternaC,
-        "humedadExternaPct": humedadExternaPct,
-        "vientoMps": vientoMps,
-        "lluviaMm": lluviaMm,
+        "tempC": tempC,
+        "humedadAirePct": humedadAirePct,
+        "bateriaPct": bateriaPct,
+        "rssiDbm": rssiDbm,
     }
 
 
@@ -115,12 +110,11 @@ async def main():
             ts_str = ts.strftime("%Y-%m-%dT%H:%M:%SZ")
 
             payload = generate_reading(ts)
-            payload["$ts"] = ts_str  # Backdate the telemetry timestamp in IoT Central
+            payload["$ts"] = ts_str
 
-            await client.send_telemetry(payload)
+            await client.send_telemetry(payload, {"iothub-creation-time-utc": ts_str})
             print(f"[{i+1}/{total_readings}] {ts_str} -> {payload}")
 
-        # Small delay to avoid IoT Hub throttling (max ~100 msg/s per device)
         await asyncio.sleep(0.3)
 
     print("Historical upload complete.")
