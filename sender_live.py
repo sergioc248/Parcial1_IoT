@@ -39,7 +39,7 @@ class MemStorage(Storage):
         return None
 
 
-model_id = None
+model_id = device.MODEL_ID
 
 async def on_props(prop: Property):
     print(f"Received {prop.name}:{prop.value}")
@@ -75,9 +75,15 @@ async def main():
     while not client.terminated():
         if client.is_connected():
             now = datetime.now(timezone.utc)
-            payload = device.generate_reading(now)
-            print(f"{now.isoformat()} -> {payload}")
-            await client.send_telemetry(payload)
+            reading = device.generate_reading(now)
+
+            await client.send_telemetry(reading["telemetry"])
+            print(f"{now.isoformat()} -> {reading['telemetry']}")
+
+            for comp_name, comp_data in reading["components"].items():
+                await client.send_telemetry(comp_data, {"$.sub": comp_name})
+                print(f"  [{comp_name}] -> {comp_data}")
+
         await asyncio.sleep(25)
 
     await client.disconnect()

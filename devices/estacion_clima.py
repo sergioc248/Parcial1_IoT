@@ -2,6 +2,7 @@ import random
 import math
 
 ENV_PREFIX = "CLIMA"
+MODEL_ID = None
 
 
 def generate_reading(ts):
@@ -24,8 +25,11 @@ def generate_reading(ts):
         lluviaMm = 0.0
 
     return {
-        "tempExternaC": tempExternaC,
-        "humedadExternaPct": humedadExternaPct,
-        "vientoMps": vientoMps,
-        "lluviaMm": lluviaMm,
+        "telemetry": {
+            "tempExternaC": tempExternaC,
+            "humedadExternaPct": humedadExternaPct,
+            "vientoMps": vientoMps,
+            "lluviaMm": lluviaMm,
+        },
+        "components": {},
     }

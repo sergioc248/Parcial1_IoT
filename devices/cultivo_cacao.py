@@ -2,6 +2,7 @@ import random
 import math
 
 ENV_PREFIX = "CACAO"
+MODEL_ID = "dtmi:unab:greenhouse:NodoCultivoBase;1"
 
 
 def generate_reading(ts):
@@ -23,7 +24,7 @@ def generate_reading(ts):
     # Soil moisture: cacao prefers moist substrate (50-80%)
     humedadSueloPct = round(random.uniform(50.0, 80.0), 0)
 
-    # Substrate pH: cacao optimal range 5.5-7.0, slight variation over time
+    # Substrate pH: cacao optimal range 5.5-7.0
     ph = round(random.uniform(5.5, 7.0), 2)
 
     # CO2: greenhouse levels, higher during day due to plant activity
@@ -38,16 +39,16 @@ def generate_reading(ts):
         luminosidadLux = 0.0
 
     return {
-        "tempC": tempC,
-        "humedadAirePct": humedadAirePct,
-        "bateriaPct": bateriaPct,
-        "rssiDbm": rssiDbm,
-        # Component: Modulo de Sensor de Suelo
-        "NodoCultivoBase_60o": {"humedadSueloPct": humedadSueloPct},
-        # Component: Módulo de Sensor de PH
-        "NodoCultivoBase_2jw": {"ph": ph},
-        # Component: Módulo de Sensor de CO2
-        "NodoCultivoBase_6mr": {"co2ppm": co2ppm},
-        # Component: Módulo de Sensor de Luz
-        "NodoCultivoBase_2xc": {"luminosidadLux": luminosidadLux},
+        "telemetry": {
+            "tempC": tempC,
+            "humedadAirePct": humedadAirePct,
+            "bateriaPct": bateriaPct,
+            "rssiDbm": rssiDbm,
+        },
+        "components": {
+            "NodoCultivoBase_60o": {"humedadSueloPct": humedadSueloPct},
+            "NodoCultivoBase_2jw": {"ph": ph},
+            "NodoCultivoBase_6mr": {"co2ppm": co2ppm},
+            "NodoCultivoBase_2xc": {"luminosidadLux": luminosidadLux},
+        },
     }

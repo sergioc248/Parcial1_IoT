@@ -42,7 +42,7 @@ class MemStorage(Storage):
         return None
 
 
-model_id = None
+model_id = device.MODEL_ID
 
 async def on_props(prop: Property):
     print(f"Received {prop.name}:{prop.value}")
@@ -86,14 +86,23 @@ async def main():
             ts = start_time + timedelta(minutes=i * INTERVAL_MINUTES)
             ts_str = ts.strftime("%Y-%m-%dT%H:%M:%SZ")
 
-            payload = device.generate_reading(ts)
-            payload["$ts"] = ts_str
+            reading = device.generate_reading(ts)
+            root = reading["telemetry"]
+            root["$ts"] = ts_str
 
             try:
-                await client.send_telemetry(payload, {"iothub-creation-time-utc": ts_str})
-                print(f"[{i+1}/{total_readings}] OK {ts_str} -> {payload}")
+                await client.send_telemetry(root, {"iothub-creation-time-utc": ts_str})
+                print(f"[{i+1}/{total_readings}] OK {ts_str} -> {root}")
             except Exception as e:
                 print(f"[{i+1}/{total_readings}] FAILED {ts_str}: {e}")
+
+            for comp_name, comp_data in reading["components"].items():
+                comp_data["$ts"] = ts_str
+                try:
+                    await client.send_telemetry(comp_data, {"$.sub": comp_name, "iothub-creation-time-utc": ts_str})
+                    print(f"  [{comp_name}] OK -> {comp_data}")
+                except Exception as e:
+                    print(f"  [{comp_name}] FAILED: {e}")
 
         await asyncio.sleep(0.3)
 
