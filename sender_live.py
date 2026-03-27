@@ -94,7 +94,10 @@ async def main():
     while True:
         try:
             await run()
-        except Exception as e:
+        except KeyboardInterrupt:
+            print("Shutting down.")
+            break
+        except BaseException as e:
             print(f"Connection error: {e}. Retrying in {retry_delay}s...")
             await asyncio.sleep(retry_delay)
 
