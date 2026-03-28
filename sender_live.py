@@ -68,12 +68,17 @@ def make_client():
     return client
 
 
+DISCONNECTED_TIMEOUT = 120  # seconds before giving up and reconnecting
+
 async def run():
     client = make_client()
     await client.connect()
 
+    disconnected_since = None
+
     while not client.terminated():
         if client.is_connected():
+            disconnected_since = None
             now = datetime.now(timezone.utc)
             reading = device.generate_reading(now)
 
@@ -83,6 +88,13 @@ async def run():
             for comp_name, comp_data in reading["components"].items():
                 await client.send_telemetry(comp_data, {"$.sub": comp_name})
                 print(f"  [{comp_name}] -> {comp_data}")
+
+        else:
+            if disconnected_since is None:
+                disconnected_since = datetime.now(timezone.utc)
+                print("Disconnected from Azure, waiting to reconnect...")
+            elif (datetime.now(timezone.utc) - disconnected_since).total_seconds() > DISCONNECTED_TIMEOUT:
+                raise ConnectionError(f"Disconnected for over {DISCONNECTED_TIMEOUT}s, restarting...")
 
         await asyncio.sleep(25)
 
