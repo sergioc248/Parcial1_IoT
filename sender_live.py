@@ -3,6 +3,7 @@ import sys
 import asyncio
 import configparser
 import importlib
+import threading
 
 from datetime import datetime, timezone
 from dotenv import load_dotenv
@@ -29,6 +30,21 @@ prefix = device.ENV_PREFIX
 device_id = os.environ[f"{prefix}_DEVICE_ID"]
 scope_id = os.environ[f"{prefix}_SCOPE_ID"]
 key = os.environ[f"{prefix}_DEVICE_KEY"]
+
+DISCONNECTED_TIMEOUT = 120  # seconds before giving up and reconnecting
+
+# Event loop reference and restart flag, set once the loop is running
+_loop = None
+_restart_event = None
+
+
+def thread_exception_handler(args):
+    print(f"Background thread error: {args.exc_value}. Triggering restart...")
+    if _loop is not None and _restart_event is not None:
+        _loop.call_soon_threadsafe(_restart_event.set)
+
+
+threading.excepthook = thread_exception_handler
 
 
 class MemStorage(Storage):
@@ -68,15 +84,19 @@ def make_client():
     return client
 
 
-DISCONNECTED_TIMEOUT = 120  # seconds before giving up and reconnecting
-
 async def run():
+    global _restart_event
+    _restart_event = asyncio.Event()
+
     client = make_client()
     await client.connect()
 
     disconnected_since = None
 
     while not client.terminated():
+        if _restart_event.is_set():
+            raise ConnectionError("Connection dropped in background thread, restarting...")
+
         if client.is_connected():
             disconnected_since = None
             now = datetime.now(timezone.utc)
@@ -102,6 +122,9 @@ async def run():
 
 
 async def main():
+    global _loop
+    _loop = asyncio.get_running_loop()
+
     retry_delay = 5
     while True:
         try:
